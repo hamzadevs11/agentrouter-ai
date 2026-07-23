@@ -52,6 +52,24 @@ function buildUpstreamHeaders(apiKey, accept, extra = {}) {
   };
 }
 
+function toAnthropicMessages(messages = []) {
+  return messages
+    .filter(m => m && m.role && m.role !== 'system')
+    .map(m => ({
+      role: m.role === 'assistant' ? 'assistant' : 'user',
+      content: Array.isArray(m.content)
+        ? m.content.map(part => typeof part === 'string' ? { type: 'text', text: part } : part)
+        : [{ type: 'text', text: String(m.content || '') }],
+    }));
+}
+
+function extractAnthropicText(json = {}) {
+  const blocks = Array.isArray(json.content) ? json.content : [];
+  return blocks
+    .map(block => typeof block === 'string' ? block : (block.text || ''))
+    .join('');
+}
+
 // Used only if AgentRouter's own GET /v1/models can't be reached right
 // now (offline, key not entered yet, temporary upstream issue). The UI
 // always also offers a free-text "custom model id" field, so a stale
@@ -133,8 +151,11 @@ app.post('/api/chat', async (req, res) => {
     ? [{ role: 'system', content: system.trim() }, ...messages]
     : messages;
 
+  const selectedModel = model || 'claude-sonnet-4-5-20250929';
+  const isClaudeModel = familyOf(selectedModel) === 'claude';
+
   const payload = {
-    model: model || 'claude-sonnet-4-5-20250929',
+    model: selectedModel,
     messages: finalMessages,
     stream: true,
     temperature: typeof temperature === 'number' ? temperature : 0.7,
@@ -143,13 +164,30 @@ app.post('/api/chat', async (req, res) => {
 
   let upstream;
   try {
-    upstream = await fetch(`${AGENTROUTER_BASE}/chat/completions`, {
-      method: 'POST',
-      headers: buildUpstreamHeaders(apiKey, 'text/event-stream', {
-        'Content-Type': 'application/json',
-      }),
-      body: JSON.stringify(payload),
-    });
+    if (isClaudeModel) {
+      upstream = await fetch(`${AGENTROUTER_BASE.replace(/\/v1$/, '')}/v1/messages`, {
+        method: 'POST',
+        headers: buildUpstreamHeaders(apiKey, 'application/json', {
+          'Content-Type': 'application/json',
+        }),
+        body: JSON.stringify({
+          model: selectedModel,
+          system: system && system.trim() ? system.trim() : undefined,
+          messages: toAnthropicMessages(finalMessages),
+          temperature: typeof temperature === 'number' ? temperature : 0.7,
+          max_tokens: typeof max_tokens === 'number' ? max_tokens : 4096,
+          stream: false,
+        }),
+      });
+    } else {
+      upstream = await fetch(`${AGENTROUTER_BASE}/chat/completions`, {
+        method: 'POST',
+        headers: buildUpstreamHeaders(apiKey, 'text/event-stream', {
+          'Content-Type': 'application/json',
+        }),
+        body: JSON.stringify(payload),
+      });
+    }
   } catch (err) {
     return res.status(502).json({ error: `Could not reach agentrouter.org: ${err.message}` });
   }
@@ -178,8 +216,8 @@ app.post('/api/chat', async (req, res) => {
   }
 
   // Case 2 — request succeeded but the provider ignored stream:true and sent a
-  // normal chat.completion object instead (some models/providers do this).
-  // Repackage it as a single SSE chunk so the browser only needs one parser.
+  // normal JSON object instead (some models/providers do this). Repackage it as
+  // a single SSE chunk so the browser only needs one parser.
   if (upstream.ok && contentType.includes('application/json')) {
     let json;
     try {
@@ -187,7 +225,11 @@ app.post('/api/chat', async (req, res) => {
     } catch (err) {
       return res.status(502).json({ error: `Could not parse AgentRouter's response: ${err.message}` });
     }
-    const content = (json.choices && json.choices[0] && json.choices[0].message && json.choices[0].message.content) || '';
+
+    const content = isClaudeModel
+      ? extractAnthropicText(json)
+      : (json.choices && json.choices[0] && json.choices[0].message && json.choices[0].message.content) || '';
+
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.write(`data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`);
