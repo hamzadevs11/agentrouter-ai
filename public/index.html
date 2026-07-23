@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+<title>AgentRouter Chat</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23151720'/%3E%3Ccircle cx='16' cy='9' r='3' fill='%23F2B84B'/%3E%3Ccircle cx='7' cy='24' r='3' fill='%237FD1AE'/%3E%3Ccircle cx='25' cy='24' r='3' fill='%23E8896B'/%3E%3Cpath d='M16 12v6M16 18l-7 4M16 18l7 4' stroke='%235A5F72' stroke-width='1.6' fill='none'/%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/base16/tomorrow-night.min.css">
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="app" id="app">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+          <circle cx="16" cy="8" r="3.4" fill="var(--accent)"/>
+          <circle cx="6.5" cy="24" r="3.4" fill="var(--family-gpt)"/>
+          <circle cx="25.5" cy="24" r="3.4" fill="var(--family-claude)"/>
+          <path d="M16 11.4V17M16 17L7.6 21.6M16 17L24.4 21.6" stroke="var(--text-tertiary)" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        <span class="brand-name">AgentRouter<span class="brand-sub">Chat</span></span>
+      </div>
+      <button class="icon-btn hide-on-mobile" id="collapseSidebarBtn" title="Collapse sidebar" aria-label="Collapse sidebar">
+        <svg viewBox="0 0 24 24" fill="none"><rect x="3.5" y="4.5" width="17" height="15" rx="3" stroke="currentColor" stroke-width="1.6"/><path d="M9.5 4.5V19.5" stroke="currentColor" stroke-width="1.6"/></svg>
+      </button>
+    </div>
+
+    <button class="new-chat-btn" id="newChatBtn" type="button">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      New chat
+    </button>
+
+    <nav class="chat-list" id="chatList" aria-label="Conversation history"></nav>
+
+    <div class="sidebar-footer">
+      <div class="key-status" id="keyStatus">
+        <span class="dot" id="keyStatusDot"></span>
+        <span id="keyStatusText">No API key set</span>
+      </div>
+      <button class="sidebar-footer-btn" id="settingsBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 15.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7z" stroke="currentColor" stroke-width="1.6"/><path d="M19.4 13.5a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V19.5a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1.08-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H4.5a2 2 0 110-4h.09a1.65 1.65 0 001.51-1.08 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H10.5a1.65 1.65 0 001-1.51V4.5a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V10.5a1.65 1.65 0 001.51 1H19.5a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+        Settings
+      </button>
+    </div>
+  </aside>
+
+  <div class="sidebar-scrim" id="sidebarScrim"></div>
+
+  <!-- ============ MAIN ============ -->
+  <main class="main">
+    <header class="topbar">
+      <button class="icon-btn show-on-mobile" id="openSidebarBtn" aria-label="Open sidebar">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M3.5 6.5h17M3.5 12h17M3.5 17.5h17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+
+      <div class="model-picker" id="modelPicker">
+        <button class="model-picker-btn" id="modelPickerBtn" type="button" aria-haspopup="listbox" aria-expanded="false">
+          <span class="model-dot" id="modelDot"></span>
+          <span id="modelPickerLabel">Loading models…</span>
+          <svg class="chev" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="model-dropdown hidden" id="modelDropdown" role="listbox"></div>
+      </div>
+
+      <button class="icon-btn" id="themeToggleBtn" title="Toggle theme" aria-label="Toggle theme">
+        <svg viewBox="0 0 24 24" fill="none" id="themeIconSun"><circle cx="12" cy="12" r="4.2" stroke="currentColor" stroke-width="1.7"/><path d="M12 3v2.2M12 18.8V21M21 12h-2.2M5.2 12H3M18.4 5.6l-1.55 1.55M7.15 16.85L5.6 18.4M18.4 18.4l-1.55-1.55M7.15 7.15L5.6 5.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      </button>
+    </header>
+
+    <section class="chat-scroll" id="chatScroll">
+      <div class="empty-state" id="emptyState">
+        <svg class="empty-mark" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+          <circle cx="32" cy="14" r="6" fill="var(--accent)"/>
+          <circle cx="13" cy="48" r="6" fill="var(--family-gpt)"/>
+          <circle cx="51" cy="48" r="6" fill="var(--family-claude)"/>
+          <path d="M32 20v11M32 31L16 42M32 31l16 11" stroke="var(--text-tertiary)" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <h1>One box, every model.</h1>
+        <p>Claude, GPT, DeepSeek and GLM — routed through your own AgentRouter key, running on your own machine.</p>
+        <div class="suggestion-grid" id="suggestionGrid">
+          <button class="suggestion-card" type="button" data-prompt="This Python function throws a KeyError I can't track down. Walk me through how you'd debug it, then show the fix:">
+            <span class="suggestion-title">Debug a traceback</span>
+            <span class="suggestion-sub">walk through a Python KeyError</span>
+          </button>
+          <button class="suggestion-card" type="button" data-prompt="Write a small Node.js + Express REST API for a todo list, with in-memory storage and full CRUD routes.">
+            <span class="suggestion-title">Scaffold an API</span>
+            <span class="suggestion-sub">Node.js + Express todo CRUD</span>
+          </button>
+          <button class="suggestion-card" type="button" data-prompt="Explain this regex like I'm seeing it for the first time: ^(?=.*[A-Z])(?=.*\d).{8,}$">
+            <span class="suggestion-title">Explain a regex</span>
+            <span class="suggestion-sub">break down a password pattern</span>
+          </button>
+          <button class="suggestion-card" type="button" data-prompt="I want to learn one new programming concept this week. Ask me about my current skill level, then suggest something and a small project to practice it.">
+            <span class="suggestion-title">Plan something to learn</span>
+            <span class="suggestion-sub">a bite-sized weekly goal</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="messages" id="messages"></div>
+    </section>
+
+    <form class="composer" id="composerForm">
+      <div class="composer-inner">
+        <textarea id="promptInput" placeholder="Message AgentRouter Chat…" rows="1"></textarea>
+        <button type="submit" class="send-btn" id="sendBtn" title="Send message" aria-label="Send message">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 19V5M12 5l-6 6M12 5l6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button type="button" class="stop-btn hidden" id="stopBtn" title="Stop generating" aria-label="Stop generating">
+          <svg viewBox="0 0 24 24" fill="none"><rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/></svg>
+        </button>
+      </div>
+      <p class="composer-hint"><span id="composerHintText">Enter to send · Shift+Enter for a new line</span></p>
+    </form>
+  </main>
+</div>
+
+<!-- ============ SETTINGS MODAL ============ -->
+<div class="modal-backdrop hidden" id="settingsBackdrop">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <div class="modal-header">
+      <h2 id="settingsTitle">Settings</h2>
+      <button class="icon-btn" id="closeSettingsBtn" aria-label="Close settings">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <label class="field">
+        <span class="field-label">AgentRouter API key</span>
+        <div class="input-with-btn">
+          <input type="password" id="apiKeyInput" placeholder="sk-…" autocomplete="off" spellcheck="false" />
+          <button type="button" class="ghost-btn" id="toggleKeyVisibility">Show</button>
+        </div>
+        <span class="field-hint">Stored only in this browser's local storage and sent to your own local server. Get a key from <a href="https://agentrouter.org/console/token" target="_blank" rel="noopener">agentrouter.org/console/token</a>.</span>
+      </label>
+
+      <label class="field">
+        <span class="field-label">Custom model id <span class="field-optional">optional</span></span>
+        <input type="text" id="customModelInput" placeholder="e.g. claude-opus-4-6" />
+        <span class="field-hint">Not in the dropdown? Type the exact model id here and it'll be added as an option.</span>
+      </label>
+
+      <label class="field">
+        <span class="field-label">System prompt <span class="field-optional">optional</span></span>
+        <textarea id="systemPromptInput" rows="3" placeholder="e.g. You are a concise senior software engineer. Prefer code over prose."></textarea>
+      </label>
+
+      <label class="field">
+        <span class="field-label">Temperature — <span id="tempValue">0.7</span></span>
+        <input type="range" id="temperatureInput" min="0" max="1.5" step="0.1" value="0.7" />
+        <span class="field-hint">Lower is more focused and predictable, higher is more varied and creative.</span>
+      </label>
+    </div>
+
+    <div class="modal-footer">
+      <button class="ghost-btn danger" id="clearAllBtn" type="button">Delete all chats</button>
+      <button class="primary-btn" id="saveSettingsBtn" type="button">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast hidden" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
