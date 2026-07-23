@@ -41,6 +41,17 @@ function resolveApiKey(req) {
   return fromBrowser || SERVER_DEFAULT_KEY;
 }
 
+function buildUpstreamHeaders(apiKey, accept, extra = {}) {
+  return {
+    Authorization: `Bearer ${apiKey}`,
+    Accept: accept,
+    'User-Agent': 'Claude Code/1.0 (+agentrouter-chat)',
+    'anthropic-version': '2023-06-01',
+    'anthropic-beta': 'tools-2024-05-14',
+    ...extra,
+  };
+}
+
 // Used only if AgentRouter's own GET /v1/models can't be reached right
 // now (offline, key not entered yet, temporary upstream issue). The UI
 // always also offers a free-text "custom model id" field, so a stale
@@ -80,11 +91,7 @@ app.get('/api/models', async (req, res) => {
 
   try {
     const upstream = await fetch(`${AGENTROUTER_BASE}/models`, {
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        Accept: 'application/json',
-        'User-Agent': 'AgentRouterChat/1.0 (+local)',
-      },
+      headers: buildUpstreamHeaders(apiKey, 'application/json'),
     });
 
     const contentType = upstream.headers.get('content-type') || '';
@@ -138,12 +145,9 @@ app.post('/api/chat', async (req, res) => {
   try {
     upstream = await fetch(`${AGENTROUTER_BASE}/chat/completions`, {
       method: 'POST',
-      headers: {
+      headers: buildUpstreamHeaders(apiKey, 'text/event-stream', {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-        Accept: 'text/event-stream',
-        'User-Agent': 'AgentRouterChat/1.0 (+local)',
-      },
+      }),
       body: JSON.stringify(payload),
     });
   } catch (err) {
